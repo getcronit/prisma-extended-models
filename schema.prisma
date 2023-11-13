@@ -1,0 +1,87 @@
+datasource db {
+    provider = "postgresql"
+
+    url = env("DATABASE_URL")
+}
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+model EmailTemplate {
+    id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    content       String
+    verifyReplyTo Boolean?
+    transformer   String?
+
+    authorizationUser   AuthorizationUser? @relation(fields: [authorizationUserId], references: [id])
+    authorizationUserId String?            @db.Uuid
+
+    envelope   EmailEnvelope? @relation(fields: [envelopeId], references: [id])
+    envelopeId String?        @db.Uuid
+
+    parent   EmailTemplate? @relation("EmailTemplateParent", fields: [parentId], references: [id])
+    parentId String?        @db.Uuid
+
+    linked EmailTemplate[] @relation("EmailTemplateParent")
+
+    variables VariableDefinition[]
+
+    // IAM data
+    createdBy  String? @db.Uuid
+    resourceId String? @db.Uuid
+
+    // Timestamps
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model VariableDefinition {
+    id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    name        String
+    description String?
+
+    defaultValue    String
+    isRequired      Boolean?
+    isConstant      Boolean?
+    EmailTemplate   EmailTemplate? @relation(fields: [emailTemplateId], references: [id])
+    emailTemplateId String?        @db.Uuid
+}
+
+model AuthorizationUser {
+    id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    userId        String          @db.Uuid
+    // @sf-hide
+    authorization String
+    EmailTemplate EmailTemplate[]
+}
+
+model EmailEnvelope {
+    id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    subject       String?
+    EmailTemplate EmailTemplate[]
+
+    from   EmailAddress? @relation("FromEnvelopes", fields: [fromId], references: [id])
+    fromId String?       @db.Uuid
+
+    replyTo   EmailAddress? @relation("ReplyToEnvelopes", fields: [replyToId], references: [id])
+    replyToId String?       @db.Uuid
+
+    to EmailAddress[]
+}
+
+model EmailAddress {
+    id    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    value String
+    type  EmailAddressType
+
+    ToEnvelopes      EmailEnvelope[]
+    FromEnvelopes    EmailEnvelope[] @relation("FromEnvelopes")
+    ReplyToEnvelopes EmailEnvelope[] @relation("ReplyToEnvelopes")
+}
+
+enum EmailAddressType {
+    EMAIL_ADDRESS
+    EMAIL_ID
+    USER_ID
+}

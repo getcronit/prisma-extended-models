@@ -1,0 +1,45 @@
+{
+  "name": "@netsnek/prisma-repository",
+  "version": "0.0.2",
+  "repository": "git@github.com:netsnek/prisma-repository.git",
+  "author": "Nico Schett <nicoschett@icloud.com>",
+  "license": "MIT",
+  "source": "src/index.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.module.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "prisma-repository": "./dist/cli.cjs"
+  },
+  "types": "dist/index.d.ts",
+  "main": "dist/index.cjs",
+  "module": "dist/index.module.js",
+  "scripts": {
+    "build": "yarn build:cli && microbundle --target node --format esm,cjs",
+    "build:cli": "microbundle --target node --format cjs --entry ./src/cli/index.ts --output ./dist/cli.cjs",
+    "dev": "yarn build --watch",
+    "cli": "node ./dist/cli.cjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "@prisma/client": "^5.5.2",
+    "microbundle": "^0.15.1",
+    "prisma": "^5.5.2"
+  },
+  "dependencies": {
+    "@devoxa/prisma-relay-cursor-connection": "^3.1.0",
+    "commander": "^10.0.0",
+    "typescript": "^5.2.2"
+  },
+  "peerDependencies": {
+    "@prisma/client": "^5.5.2",
+    "prisma": "^5.5.2"
+  }
+}
