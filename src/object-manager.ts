@@ -2,7 +2,14 @@ import {
   ConnectionArguments,
   findManyCursorConnection,
 } from "@devoxa/prisma-relay-cursor-connection";
-import { Prisma } from `${process.cwd() + "/node_modules/@prisma/client"}`;
+import { Prisma } from "@prisma/client";
+
+import {
+  CreateError,
+  NotFoundError,
+  UpdateError,
+  UpsertError,
+} from "./errors.js";
 
 export class ObjectManager<
   T extends keyof Prisma.TypeMap["model"],
@@ -16,12 +23,10 @@ export class ObjectManager<
     const obj = await this.instance.findFirst(args);
 
     if (!obj) {
-      throw new Error("Object not found");
+      throw new NotFoundError();
     }
 
-    const i = new this.model(obj);
-
-    return i;
+    return new this.model(obj);
   };
 
   filter = async (
@@ -55,17 +60,28 @@ export class ObjectManager<
   create = async (
     args?: Prisma.TypeMap["model"][T]["operations"]["create"]["args"]
   ): Promise<InstanceType<Cls>> => {
-    const obj = await this.instance.create(args);
+    try {
+      const obj = await this.instance.create(args);
 
-    return new this.model(obj);
+      return new this.model(obj);
+    } catch (e) {
+      console.error(e);
+
+      throw new CreateError();
+    }
   };
 
   update = async (
     args?: Prisma.TypeMap["model"][T]["operations"]["update"]["args"]
   ): Promise<InstanceType<Cls>> => {
-    const obj = await this.instance.update(args);
+    try {
+      const obj = await this.instance.update(args);
 
-    return new this.model(obj);
+      return new this.model(obj);
+    } catch (e) {
+      console.error(e);
+      throw new UpdateError();
+    }
   };
 
   delete = async (
@@ -79,9 +95,14 @@ export class ObjectManager<
   upsert = async (
     args?: Prisma.TypeMap["model"][T]["operations"]["upsert"]["args"]
   ): Promise<InstanceType<Cls>> => {
-    const obj = await this.instance.upsert(args);
+    try {
+      const obj = await this.instance.upsert(args);
 
-    return new this.model(obj);
+      return new this.model(obj);
+    } catch (e) {
+      console.error(e);
+      throw new UpsertError();
+    }
   };
 
   count = async (
