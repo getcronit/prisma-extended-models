@@ -17,6 +17,7 @@ program
 program
   .command("generate")
   .description("Generate repository")
+  .option("--pagination", "Generate repository with pagination", true)
   .action(commands.generate);
 
 program.parse();

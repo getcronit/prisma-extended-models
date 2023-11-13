@@ -31,7 +31,15 @@ const getPrismaSymbols = () => {
 };
 
 const buildClasses = (
-  dmmf: typeof Prisma.dmmf,
+  {
+    dmmf,
+    flags,
+  }: {
+    dmmf: typeof Prisma.dmmf;
+    flags: {
+      pagination: boolean;
+    };
+  },
   { checker, exportsSymbols }: ReturnType<typeof getPrismaSymbols>
 ) => {
   let code = ``;
@@ -118,7 +126,11 @@ const buildClasses = (
           type += " | null";
         }
 
-        const managerMethod = field.isList ? "filter" : "get";
+        let managerMethod = field.isList ? "filter" : "get";
+
+        if (flags.pagination && field.isList) {
+          managerMethod = "paginate";
+        }
 
         const where = field.relationToFields.reduce(
           (
@@ -179,7 +191,29 @@ const buildClasses = (
           .replace(/"/g, "")
           .slice(1, -1);
 
-        return `${field.name}: AsyncFn<${type}> = async () => {
+        let returnStatement;
+
+        if (field.isList && flags.pagination) {
+          returnStatement = `return ${objectsStatement}({first, last, before, after}, {
+            where: {
+                ${whereStatement ? whereStatement + "," : ""}
+            },
+          });`;
+        } else {
+          returnStatement = `return ${objectsStatement}({
+            where: {
+                ${whereStatement ? whereStatement + "," : ""}
+            },
+          });`;
+        }
+
+        return `${field.name} = async (
+          ${
+            flags.pagination && field.isList
+              ? 'first: ConnectionArguments["first"], after: ConnectionArguments["after"], last: ConnectionArguments["last"], before: ConnectionArguments["before"],'
+              : ""
+          }
+        ) => {
       ${field.relationFromFields
         .map((f: any) => {
           if (field.isRequired) {
@@ -192,11 +226,7 @@ const buildClasses = (
   
       
   
-      return ${objectsStatement}({
-        where: {
-            ${whereStatement ? whereStatement + "," : ""}
-        },
-      });
+      ${returnStatement}
     };\n`;
       } else {
         const shouldPrefix =
@@ -240,25 +270,27 @@ const buildClasses = (
   return code;
 };
 
-export const generateRepository = async (dmmf: typeof Prisma.dmmf) => {
+export const generateRepository = async (options: {
+  dmmf: typeof Prisma.dmmf;
+  flags: {
+    pagination: boolean;
+  };
+}) => {
   let code = `// @ts-ignore
 import type {$Enums} from "@prisma/client";
 import {PrismaClient} from "@prisma/client";
 import { Prisma } from "@prisma/client";
-
+import { ConnectionArguments } from "@devoxa/prisma-relay-cursor-connection";
 import { Model, ObjectManager } from "@netsnek/prisma-repository";
-import _Repository from './index.js'
 
-type AsyncFn<Rtn, Args extends any[] = []> = Args extends []
-  ? () => Promise<Rtn>
-  : (...args: Args) => Promise<Rtn>
+import _Repository from './index.js'
 
 const client = new PrismaClient()
 `;
 
   const exportsSymbols = getPrismaSymbols();
 
-  code += buildClasses(dmmf, exportsSymbols);
+  code += buildClasses(options, exportsSymbols);
 
   return code;
 };
