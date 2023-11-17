@@ -2,8 +2,12 @@ import { generatePrismaClient } from "./generate-prisma-client";
 import { getPrismaDMMF } from "./get-prisma-dmmf";
 import { generateRepository } from "./generate-repository";
 import { writeRepository } from "./write-repository";
+import { generateCRUDService } from "./generate-crud-service";
 
-export default async function generate(options: { pagination: boolean }) {
+export default async function generate(options: {
+  pagination: boolean;
+  service: boolean;
+}) {
   // 1. Perform yarn prisma generate
   console.log("Step 1: Performing yarn prisma generate");
   await generatePrismaClient();
@@ -16,14 +20,28 @@ export default async function generate(options: { pagination: boolean }) {
 
   // 3. Generate repository
   console.log("Step 3: Generating repository");
-  const repository = await generateRepository({
+  const repositoryCode = await generateRepository({
     dmmf,
     flags: { pagination: options.pagination },
   });
   console.log("Step 3: Repository generation completed");
 
+  let crudServiceCode: string | undefined = undefined;
+
+  // 4. Generate service (optional)
+  if (options.service) {
+    console.log("Step 4: Generating CRUD service");
+    crudServiceCode = generateCRUDService({ dmmf });
+    console.log("Step 4: CRUD Service generation completed");
+  } else {
+    console.log("Step 4: Skipping CRUD service generation");
+  }
+
   // 4. Write repository
-  console.log("Step 4: Writing repository");
-  writeRepository(repository);
-  console.log("Step 4: Repository writing completed");
+  console.log("Step 5: Writing repository");
+  writeRepository({
+    generated: repositoryCode,
+    crudService: crudServiceCode,
+  });
+  console.log("Step 5: Repository writing completed");
 }
