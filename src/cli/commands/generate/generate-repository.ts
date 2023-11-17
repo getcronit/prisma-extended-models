@@ -191,29 +191,15 @@ const buildClasses = (
           .replace(/"/g, "")
           .slice(1, -1);
 
-        let returnStatement;
+        const isPaginated = flags.pagination && field.isList;
 
-        if (field.isList && flags.pagination) {
-          returnStatement = `return ${objectsStatement}({first, last, before, after}, {
-            where: {
-                ${whereStatement ? whereStatement + "," : ""}
-            },
-          });`;
-        } else {
-          returnStatement = `return ${objectsStatement}({
-            where: {
-                ${whereStatement ? whereStatement + "," : ""}
-            },
-          });`;
-        }
+        const objectStatementType = !field.isRequired
+          ? `${
+              isPaginated ? "NullablePaginateFuntion" : "NullableGetFunction"
+            }<typeof ${objectsStatement}>`
+          : `typeof ${objectsStatement}`;
 
-        return `${field.name} = async (
-          ${
-            flags.pagination && field.isList
-              ? 'first: ConnectionArguments["first"], after: ConnectionArguments["after"], last: ConnectionArguments["last"], before: ConnectionArguments["before"],'
-              : ""
-          }
-        ) => {
+        return `${field.name}: ${objectStatementType} = async (...args) => {
       ${field.relationFromFields
         .map((f: any) => {
           if (field.isRequired) {
@@ -224,9 +210,12 @@ const buildClasses = (
         })
         .join("\n")}
   
-      
+
+      args[${isPaginated ? 1 : 0}] = {...args[${
+          isPaginated ? 1 : 0
+        }], ${whereStatement}};
   
-      ${returnStatement}
+      return ${objectsStatement}(...args);
     };\n`;
       } else {
         const shouldPrefix =
@@ -281,7 +270,7 @@ import type {$Enums} from "@prisma/client";
 import {PrismaClient} from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { ConnectionArguments } from "@devoxa/prisma-relay-cursor-connection";
-import { Model, ObjectManager } from "@netsnek/prisma-repository";
+import { Model, ObjectManager, NullableGetFunction, NullablePaginateFuntion } from "@netsnek/prisma-repository";
 
 import _Repository from './index.js'
 

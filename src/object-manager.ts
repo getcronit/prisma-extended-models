@@ -18,9 +18,10 @@ export class ObjectManager<
   constructor(private instance: any, private model: Cls) {}
 
   get = async (
-    args?: Prisma.TypeMap["model"][T]["operations"]["findFirst"]["args"]
+    where?: Prisma.TypeMap["model"][T]["operations"]["findFirst"]["args"]["where"],
+    orderBy?: Prisma.TypeMap["model"][T]["operations"]["findFirst"]["args"]["orderBy"]
   ): Promise<InstanceType<Cls>> => {
-    const obj = await this.instance.findFirst(args);
+    const obj = await this.instance.findFirst({ where, orderBy });
 
     if (!obj) {
       throw new NotFoundError();
@@ -30,21 +31,24 @@ export class ObjectManager<
   };
 
   filter = async (
-    args?: Prisma.TypeMap["model"][T]["operations"]["findMany"]["args"]
+    where?: Prisma.TypeMap["model"][T]["operations"]["findMany"]["args"]["where"],
+    orderBy?: Prisma.TypeMap["model"][T]["operations"]["findMany"]["args"]["orderBy"]
   ): Promise<InstanceType<Cls>[]> => {
-    const objs = await this.instance.findMany(args);
+    const objs = await this.instance.findMany({ where, orderBy });
 
     return objs.map((obj: any) => new this.model(obj)) as InstanceType<Cls>[];
   };
 
   paginate = async (
-    connectionArguments?: ConnectionArguments,
-    args?: Prisma.TypeMap["model"][T]["operations"]["findMany"]["args"]
+    pagination?: ConnectionArguments,
+    where?: Prisma.TypeMap["model"][T]["operations"]["findMany"]["args"]["where"],
+    orderBy?: Prisma.TypeMap["model"][T]["operations"]["findMany"]["args"]["orderBy"]
   ) => {
     return findManyCursorConnection(
       async (connectionArgs) => {
         const objs = await this.instance.findMany({
-          ...args,
+          where,
+          orderBy,
           ...connectionArgs,
         });
 
@@ -52,16 +56,16 @@ export class ObjectManager<
           (obj: any) => new this.model(obj)
         ) as InstanceType<Cls>[];
       },
-      () => this.count(args as any),
-      connectionArguments
+      () => this.count(where, orderBy),
+      pagination
     );
   };
 
   create = async (
-    args?: Prisma.TypeMap["model"][T]["operations"]["create"]["args"]
+    data: Prisma.TypeMap["model"][T]["operations"]["create"]["args"]["data"]
   ): Promise<InstanceType<Cls>> => {
     try {
-      const obj = await this.instance.create(args);
+      const obj = await this.instance.create({ data });
 
       return new this.model(obj);
     } catch (e) {
@@ -72,10 +76,11 @@ export class ObjectManager<
   };
 
   update = async (
-    args?: Prisma.TypeMap["model"][T]["operations"]["update"]["args"]
+    data: Prisma.TypeMap["model"][T]["operations"]["update"]["args"]["data"],
+    where?: Prisma.TypeMap["model"][T]["operations"]["update"]["args"]["where"]
   ): Promise<InstanceType<Cls>> => {
     try {
-      const obj = await this.instance.update(args);
+      const obj = await this.instance.update({ data, where });
 
       return new this.model(obj);
     } catch (e) {
@@ -85,18 +90,20 @@ export class ObjectManager<
   };
 
   delete = async (
-    args?: Prisma.TypeMap["model"][T]["operations"]["delete"]["args"]
+    where?: Prisma.TypeMap["model"][T]["operations"]["delete"]["args"]["where"]
   ): Promise<InstanceType<Cls>> => {
-    const obj = await this.instance.delete(args);
+    const obj = await this.instance.delete({ where });
 
     return new this.model(obj);
   };
 
   upsert = async (
-    args?: Prisma.TypeMap["model"][T]["operations"]["upsert"]["args"]
+    create?: Prisma.TypeMap["model"][T]["operations"]["upsert"]["args"]["create"],
+    update?: Prisma.TypeMap["model"][T]["operations"]["upsert"]["args"]["update"],
+    where?: Prisma.TypeMap["model"][T]["operations"]["upsert"]["args"]["where"]
   ): Promise<InstanceType<Cls>> => {
     try {
-      const obj = await this.instance.upsert(args);
+      const obj = await this.instance.upsert({ create, update, where });
 
       return new this.model(obj);
     } catch (e) {
@@ -106,8 +113,9 @@ export class ObjectManager<
   };
 
   count = async (
-    args?: Prisma.TypeMap["model"][T]["operations"]["count"]["args"]
+    where?: Prisma.TypeMap["model"][T]["operations"]["count"]["args"]["where"],
+    orderBy?: Prisma.TypeMap["model"][T]["operations"]["count"]["args"]["orderBy"]
   ): Promise<number> => {
-    return await this.instance.count(args);
+    return await this.instance.count({ orderBy, where });
   };
 }

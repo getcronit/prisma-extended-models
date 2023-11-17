@@ -51,7 +51,7 @@ model VariableDefinition {
 model AuthorizationUser {
     id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
     userId        String          @db.Uuid
-    // @sf-hide
+    /// @sf-hide
     authorization String
     EmailTemplate EmailTemplate[]
 }

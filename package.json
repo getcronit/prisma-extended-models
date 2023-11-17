@@ -1,6 +1,6 @@
 {
   "name": "@netsnek/prisma-repository",
-  "version": "0.0.5",
+  "version": "0.0.12",
   "repository": "git@github.com:netsnek/prisma-repository.git",
   "author": "Nico Schett <nicoschett@icloud.com>",
   "license": "MIT",
