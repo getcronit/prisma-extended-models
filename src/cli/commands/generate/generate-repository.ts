@@ -214,8 +214,14 @@ const buildClasses = (
       args[${isPaginated ? 1 : 0}] = {...args[${
           isPaginated ? 1 : 0
         }], ${whereStatement}};
+
+      try {
+        return await ${objectsStatement}(...args);
+      } catch (e) {
+        ${field.isRequired ? "throw e;" : "return null;"}
+      }
   
-      return ${objectsStatement}(...args);
+      
     };\n`;
       } else {
         const shouldPrefix =
