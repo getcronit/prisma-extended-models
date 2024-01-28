@@ -1,10 +1,12 @@
+import type { Prisma } from "@prisma/client";
+
 const prismaClientPath = process.cwd() + "/node_modules/@prisma/client";
 
-export const getPrismaDMMF = async () => {
+export const getPrismaDMMF = async (): Promise<typeof Prisma.dmmf> => {
   // It is important to import the Prisma client dynamically
-  // to ensure the version after yarn prisma generate is used!
+  // to ensure the version after prisma generate is used!
 
-  const Prisma = await import(prismaClientPath);
+  const P = await import(prismaClientPath);
 
-  return Prisma.Prisma.dmmf;
+  return P.Prisma.dmmf;
 };

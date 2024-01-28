@@ -7,10 +7,11 @@ import { generateCRUDService } from "./generate-crud-service";
 export default async function generate(options: {
   pagination: boolean;
   service: boolean;
+  pm: "yarn" | "npm" | "bun";
 }) {
-  // 1. Perform yarn prisma generate
-  console.log("Step 1: Performing yarn prisma generate");
-  await generatePrismaClient();
+  // 1. Perform prisma generate
+  console.log(`Step 1: Performing ${options.pm} prisma generate`);
+  await generatePrismaClient({ pm: options.pm });
   console.log("Step 1: Prisma client generation completed");
 
   // 2. Initiate Prisma Client and get DMMF

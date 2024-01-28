@@ -1,5 +1,5 @@
-import type { Prisma } from "@prisma/client";
 import ts from "typescript";
+import type { Prisma } from "@prisma/client";
 
 const prismaClientPath =
   process.cwd() + "/node_modules/@prisma/client/index.d.ts";

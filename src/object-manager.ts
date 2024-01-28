@@ -77,7 +77,7 @@ export class ObjectManager<
 
   update = async (
     data: Prisma.TypeMap["model"][T]["operations"]["update"]["args"]["data"],
-    where?: Prisma.TypeMap["model"][T]["operations"]["update"]["args"]["where"]
+    where: Prisma.TypeMap["model"][T]["operations"]["update"]["args"]["where"]
   ): Promise<InstanceType<Cls>> => {
     try {
       const obj = await this.instance.update({ data, where });
@@ -90,7 +90,7 @@ export class ObjectManager<
   };
 
   delete = async (
-    where?: Prisma.TypeMap["model"][T]["operations"]["delete"]["args"]["where"]
+    where: Prisma.TypeMap["model"][T]["operations"]["delete"]["args"]["where"]
   ): Promise<InstanceType<Cls>> => {
     const obj = await this.instance.delete({ where });
 
@@ -98,9 +98,9 @@ export class ObjectManager<
   };
 
   upsert = async (
-    create?: Prisma.TypeMap["model"][T]["operations"]["upsert"]["args"]["create"],
-    update?: Prisma.TypeMap["model"][T]["operations"]["upsert"]["args"]["update"],
-    where?: Prisma.TypeMap["model"][T]["operations"]["upsert"]["args"]["where"]
+    create: Prisma.TypeMap["model"][T]["operations"]["upsert"]["args"]["create"],
+    update: Prisma.TypeMap["model"][T]["operations"]["upsert"]["args"]["update"],
+    where: Prisma.TypeMap["model"][T]["operations"]["upsert"]["args"]["where"]
   ): Promise<InstanceType<Cls>> => {
     try {
       const obj = await this.instance.upsert({ create, update, where });
