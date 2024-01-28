@@ -150,6 +150,37 @@ const buildClasses = (
           field.relationFromFields.length === 0 &&
           field.relationToFields.length === 0;
 
+        let relationFromFields = field.relationFromFields || [];
+        let relationToFields = field.relationToFields || [];
+        let relationModel = null;
+
+        if (isImplicitManyToMany) {
+          // Take the first model that has the same relation name
+          // and that is not the current model
+
+          for (const model of dmmf.datamodel.models) {
+            const relation = model.fields.find(
+              (f) => f.relationName === field.relationName
+            );
+
+            if (relation) {
+              if (
+                modelName !== model.name ||
+                (relation.relationFromFields &&
+                  relation.relationFromFields.length > 0)
+              ) {
+                relationModel = relation;
+              }
+              continue;
+            }
+          }
+
+          if (relationModel) {
+            relationToFields = relationModel.relationFromFields || [];
+            relationFromFields = relationModel.relationToFields || [];
+          }
+        }
+
         if (isImplicitManyToMany) {
           let relationModel = null;
 
@@ -199,7 +230,9 @@ const buildClasses = (
             }<typeof ${objectsStatement}>`
           : `typeof ${objectsStatement}`;
 
-        return `${field.name}: ${objectStatementType} = async (...args) => {
+        const relation = `${
+          field.name
+        }: ${objectStatementType} = async (...args) => {
       ${field.relationFromFields
         .map((f: any) => {
           if (field.isRequired) {
@@ -223,6 +256,75 @@ const buildClasses = (
   
       
     };\n`;
+
+        const relations = [
+          ...(field.isList ? relationToFields : relationFromFields),
+        ];
+
+        const omitRelations = relations
+          .concat(relationModel?.name || [])
+          .map((f: any) => `'${f}'`)
+          .join(" | ");
+
+        const createRelation = `$${
+          field.name
+        }Create = async (data: Omit<Prisma.${
+          field.type
+        }CreateArgs['data'], ${omitRelations}>) => {
+
+            const _data = {...data, ${relations.map(
+              (f: any) => `${f}: this.id`
+            )}} as Prisma.${field.type}CreateArgs['data'];
+
+            try {
+              return await _Repository.${field.type}.objects.create(_data);
+            } catch (e) {
+              throw e
+            }
+          }
+     `;
+
+        const updateRelation = `$update${
+          field.name
+        } = async (data: Omit<Prisma.${
+          field.type
+        }UpdateArgs['data'], ${omitRelations}>, where: Prisma.${
+          field.type
+        }UpdateArgs['where']) => {
+
+          const _data = {...data, ${relations.map(
+            (f: any) => `${f}: this.id`
+          )}} as Prisma.${field.type}UpdateArgs['data'];
+
+          try {
+            return await _Repository.${field.type}.objects.update(_data, where);
+          }
+          catch (e) {
+            throw e
+          }
+        }
+    `;
+
+        const deleteRelation = `$${
+          field.name
+        }Delete = async (where: Omit<Prisma.${
+          field.type
+        }DeleteArgs['where'], ${omitRelations}>) => {
+
+            const _where = {...where, ${relations.map(
+              (f: any) => `${f}: this.id`
+            )}} as Prisma.${field.type}DeleteArgs['where'];
+
+            try {
+              return await _Repository.${field.type}.objects.delete(_where);
+            }
+            catch (e) {
+              throw e
+            }
+          }
+      `;
+
+        return `${relation}\n${createRelation}\n${updateRelation}\n${deleteRelation}\n`;
       } else {
         const shouldPrefix =
           relationFromFields.includes(field.name) ||
@@ -276,7 +378,7 @@ import type {$Enums} from "@prisma/client";
 import {PrismaClient} from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { ConnectionArguments } from "@devoxa/prisma-relay-cursor-connection";
-import { Model, ObjectManager, NullableGetFunction, NullablePaginateFuntion } from "@netsnek/prisma-repository";
+import { Model, ObjectManager, NullableGetFunction, NullablePaginateFuntion } from "../../dist";
 
 import _Repository from './index.js'
 
