@@ -1,6 +1,5 @@
-export { shadowCls } from "./shadow-cls.js";
 export { ObjectManager } from "./object-manager.js";
-export { Model } from "./model.js";
+export { Repository } from "./repository.js";
 export {
   NotFoundError,
   CreateError,

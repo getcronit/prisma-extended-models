@@ -1,12 +1,4 @@
-import type * as SF from "@snek-at/function";
-
-let ServiceError: typeof Error | typeof SF.ServiceError;
-
-try {
-  ServiceError = require("@snek-at/function").ServiceError;
-} catch (error) {
-  ServiceError = Error;
-}
+import { ServiceError } from "@cronitio/pylon";
 
 export class NotFoundError extends ServiceError {
   constructor(message: string = "Object not found") {

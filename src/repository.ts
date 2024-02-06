@@ -1,4 +1,4 @@
-export abstract class Model {
+export abstract class Repository {
   $save() {}
   $fetch() {}
 

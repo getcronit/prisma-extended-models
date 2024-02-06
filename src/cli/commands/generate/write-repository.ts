@@ -28,6 +28,24 @@ const createModelFileIfNotExists = (modelPath: string, content: string) => {
   }
 };
 
+const createClientFileIfNotExists = (clientPath: string) => {
+  try {
+    if (!fs.existsSync(clientPath)) {
+      console.log(`Creating client file ${clientPath}`);
+      fs.writeFileSync(
+        clientPath,
+        `import {PrismaClient} from "@prisma/client";
+export const client = new PrismaClient()`
+      );
+
+      return true;
+    }
+  } catch (error) {
+    console.error(`Error creating file ${clientPath}:`, error);
+    throw error; // Rethrow the error for higher-level handling if needed
+  }
+};
+
 export const writeRepository = (code: {
   generated: string;
   models: string[];
@@ -49,14 +67,28 @@ export const writeRepository = (code: {
     code.models.forEach((model) => {
       const MODEL_PATH = path.resolve(MODELS_PATH, `${model}.ts`);
 
-      const content = `import * as Repositories from "../.generated";
+      const prismaInstanceName = model[0]?.toLowerCase() + model.slice(1);
 
-export class ${model} extends Repositories.${model} {
+      const content = `import { ObjectManager } from "@netsnek/prisma-repository";
+
+import {client} from "../client";
+import {${model}Repository} from "../.generated";
+
+
+export class ${model} extends ${model}Repository {
+
+  static objects = new ObjectManager<"${model}", typeof ${model}>(client.${prismaInstanceName},${model});
+
   // Custom logic here...
 }`;
 
       createModelFileIfNotExists(MODEL_PATH, content);
     });
+
+    const CLIENT_PATH = path.resolve(REPOSITORY_PATH, "client.ts");
+
+    // Create ./repository/client.ts if it doesn't exist
+    createClientFileIfNotExists(CLIENT_PATH);
 
     // Additional logic for other directories or files if needed...
   } catch (error) {

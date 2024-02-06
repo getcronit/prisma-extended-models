@@ -1,87 +1,235 @@
-datasource db {
-    provider = "postgresql"
-
-    url = env("DATABASE_URL")
-}
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
     provider = "prisma-client-js"
 }
 
-model EmailTemplate {
-    id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-    content       String
-    verifyReplyTo Boolean?
-    transformer   String?
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
 
-    authorizationUser   AuthorizationUser? @relation(fields: [authorizationUserId], references: [id])
-    authorizationUserId String?            @db.Uuid
+model User {
+    id String @id
 
-    envelope   EmailEnvelope? @relation(fields: [envelopeId], references: [id])
-    envelopeId String?        @db.Uuid
+    courses      Course[]
+    subscription UserSubscription?
+}
 
-    parent   EmailTemplate? @relation("EmailTemplateParent", fields: [parentId], references: [id])
-    parentId String?        @db.Uuid
+model Course {
+    id        String     @id @default(uuid())
+    title     String
+    documents Document[]
 
-    linked EmailTemplate[] @relation("EmailTemplateParent")
+    userId String
+    User   User   @relation(fields: [userId], references: [id])
+}
 
-    variables VariableDefinition[]
+model Document {
+    id       String @id @default(uuid())
+    courseId String
+    title    String
 
-    // IAM data
-    createdBy  String? @db.Uuid
-    resourceId String? @db.Uuid
+    contentId String?
+    // Content array
+    content   DocumentContent[]
 
-    // Timestamps
+    // Define the relationship with the Course model
+    course Course @relation(fields: [courseId], references: [id])
+
+    readTime       Float                 @default(0)
+    progress       Int                   @default(0)
+    markedFinished Boolean               @default(false)
+    status         DocumentContentStatus @default(DRAFT)
+
+    fileId String @default("")
+
     createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+
+    documentProcessings DocumentProcessing[]
 }
 
-model VariableDefinition {
-    id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-    name        String
-    description String?
+model DocumentProcessing {
+    id String @id @default(uuid())
 
-    defaultValue    String
-    isRequired      Boolean?
-    isConstant      Boolean?
-    EmailTemplate   EmailTemplate? @relation(fields: [emailTemplateId], references: [id])
-    emailTemplateId String?        @db.Uuid
+    document   Document @relation(fields: [documentId], references: [id])
+    documentId String
+
+    audioAvailable Boolean @default(false)
+    audioTokenCost Int?
+    tokenCost      Int     @default(0)
+
+    status DocumentContentStatus?
+    error  String?
 }
 
-model AuthorizationUser {
-    id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-    userId        String          @db.Uuid
-    /// @sf-hide
-    authorization String
-    EmailTemplate EmailTemplate[]
+model DocumentChat {
+    id String @id @default(uuid())
+
+    messages DocumentChatMessage[]
+
+    documentContent   DocumentContent @relation(fields: [documentContentId], references: [id])
+    documentContentId String          @unique
 }
 
-model EmailEnvelope {
-    id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-    subject       String?
-    EmailTemplate EmailTemplate[]
+model DocumentChatMessage {
+    id String @id @default(uuid())
 
-    from   EmailAddress? @relation("FromEnvelopes", fields: [fromId], references: [id])
-    fromId String?       @db.Uuid
+    text     String
+    response String
 
-    replyTo   EmailAddress? @relation("ReplyToEnvelopes", fields: [replyToId], references: [id])
-    replyToId String?       @db.Uuid
+    chat   DocumentChat @relation(fields: [chatId], references: [id])
+    chatId String
 
-    to EmailAddress[]
+    createdAt DateTime @default(now())
 }
 
-model EmailAddress {
-    id    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-    value String
-    type  EmailAddressType
+model DocumentContent {
+    id String @id @default(uuid())
 
-    ToEnvelopes      EmailEnvelope[]
-    FromEnvelopes    EmailEnvelope[] @relation("FromEnvelopes")
-    ReplyToEnvelopes EmailEnvelope[] @relation("ReplyToEnvelopes")
+    title    String
+    text     String
+    progress Int    @default(0)
+
+    ttsUrl String?
+
+    images DocumentContentImage[]
+
+    glossaryTerms GlossaryTerm[]
+    document      Document       @relation(fields: [documentId], references: [id])
+    documentId    String
+    exam          Exam?
+
+    chat DocumentChat?
+
+    createdAt DateTime @default(now())
 }
 
-enum EmailAddressType {
-    EMAIL_ADDRESS
-    EMAIL_ID
-    USER_ID
+model DocumentContentImage {
+    id String @id @default(uuid())
+
+    url      String
+    thumbUrl String?
+
+    content   DocumentContent @relation(fields: [contentId], references: [id])
+    contentId String
+}
+
+model Exam {
+    id String @id @default(uuid())
+
+    questions ExamQuestion[]
+
+    content   DocumentContent @relation(fields: [contentId], references: [id])
+    contentId String          @unique
+}
+
+model GlossaryTerm {
+    id String @id @default(uuid())
+
+    term       String
+    definition String
+    content    DocumentContent @relation(fields: [contentId], references: [id])
+    contentId  String
+}
+
+model ExamQuestion {
+    id String @id @default(uuid())
+
+    question    String
+    answers     ExamQuestionAnswer[]
+    exam        Exam                 @relation(fields: [examId], references: [id])
+    examId      String
+    hasSkipped  Boolean              @default(false)
+    hasAnswered Boolean              @default(false)
+}
+
+model ExamQuestionAnswer {
+    id String @id @default(uuid())
+
+    answer         String
+    isCorrect      Boolean
+    examQuestion   ExamQuestion @relation(fields: [examQuestionId], references: [id])
+    examQuestionId String
+
+    isSelected Boolean @default(false)
+}
+
+model BetaToken {
+    id String @id @default(uuid())
+
+    claimedBy String?
+}
+
+model UserToken {
+    id String @id @default(uuid())
+
+    userId String @unique
+    amount Int    @default(0)
+}
+
+model UserTokenTransaction {
+    id String @id @default(uuid())
+
+    userId    String
+    amount    Int
+    type      UserTokenTransactionType
+    createdAt DateTime                 @default(now())
+
+    UserSubscription   UserSubscription? @relation(fields: [userSubscriptionId], references: [id])
+    userSubscriptionId String?
+    UserPayment        UserPayment?      @relation(fields: [userPaymentId], references: [id])
+    userPaymentId      String?
+}
+
+model UserSubscription {
+    id String @id @default(uuid())
+
+    userId String @unique
+    user   User   @relation(fields: [userId], references: [id])
+
+    stripeCustomerId       String   @unique
+    stripeSubscriptionId   String   @unique
+    stripePriceId          String
+    stripeCurrentPeriodEnd DateTime
+
+    transactions UserTokenTransaction[]
+}
+
+model UserPayment {
+    id String @id @default(uuid())
+
+    userId String
+
+    stripePaymentIntentId String @unique
+    stripeInvoiceId       String @unique
+    stripePriceId         String
+
+    transactions UserTokenTransaction[]
+
+    createdAt DateTime @default(now())
+}
+
+model Customer {
+    id String @id @default(uuid())
+
+    userId String @unique
+
+    stripeCustomerId String @unique
+}
+
+enum UserTokenTransactionType {
+    CONSUMPTION // When tokens are consumed (e.g. when a user requests to process a document)
+    PURCHASE // When tokens are purchased (e.g. when a user buys tokens)
+    REFUND // When tokens are refunded (e.g. when a user cancels a purchase)
+}
+
+// Different statuses for the content of a document
+enum DocumentContentStatus {
+    DRAFT // The document has been uploaded but not yet processed
+    PROCESSING // The document is being processed
+    STUCK // The document is stuck in processing
+    FAILED // The document failed to be processed
+    COMPLETED // The document has been processed and is ready to be used
 }

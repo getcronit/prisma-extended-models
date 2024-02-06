@@ -18,7 +18,7 @@ program
   .command("generate")
   .description("Generate repository")
   .option("--pagination", "Generate repository with pagination", true)
-  .option("--pm", "Specify package manager to use", "yarn")
+  .option("--pm <manager>", "Specify package manager to use", "yarn")
   .action(commands.generate);
 
 program.parse();

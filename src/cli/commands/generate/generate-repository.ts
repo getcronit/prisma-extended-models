@@ -30,6 +30,10 @@ const getPrismaSymbols = () => {
   return { exportsSymbols, checker };
 };
 
+const capitalize = (str: string) => {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
 const buildClasses = (
   {
     dmmf,
@@ -43,13 +47,6 @@ const buildClasses = (
   { checker, exportsSymbols }: ReturnType<typeof getPrismaSymbols>
 ) => {
   let code = ``;
-
-  const objectManager = (modelName: string, prismaInstanceName: string) => {
-    return `static objects = new ObjectManager<"${modelName}", typeof ${modelName}>(
-    client.${prismaInstanceName},
-    ${modelName}
-  );\n`;
-  };
 
   const constructor = (model: any) => {
     const relationFromFields = model.fields
@@ -217,7 +214,7 @@ const buildClasses = (
           }
         }
 
-        const objectsStatement = `${field.type}.objects.${managerMethod}`;
+        const objectsStatement = `${field.type}Model.objects.${managerMethod}`;
         const whereStatement = JSON.stringify(where)
           .replace(/"/g, "")
           .slice(1, -1);
@@ -226,13 +223,13 @@ const buildClasses = (
 
         const objectStatementType = !field.isRequired
           ? `${
-              isPaginated ? "NullablePaginateFuntion" : "NullableGetFunction"
+              isPaginated ? "NullablePaginateFunction" : "NullableGetFunction"
             }<typeof ${objectsStatement}>`
           : `typeof ${objectsStatement}`;
 
-        const relation = `${
+        const relation = `async ${
           field.name
-        }: ${objectStatementType} = async (...args) => {
+        } (...args: Parameters<${objectStatementType}>) {
       ${field.relationFromFields
         .map((f: any) => {
           if (field.isRequired) {
@@ -248,8 +245,12 @@ const buildClasses = (
           isPaginated ? 1 : 0
         }], ${whereStatement}};
 
+        const Model = require('./models/${field.type}').${
+          field.type
+        } as typeof ${field.type}Model;
+
       try {
-        return await ${objectsStatement}(...args);
+        return await Model.objects.${managerMethod}(...args);
       } catch (e) {
         ${field.isRequired ? "throw e;" : "return null;"}
       }
@@ -266,60 +267,69 @@ const buildClasses = (
           .map((f: any) => `'${f}'`)
           .join(" | ");
 
-        const createRelation = `$add${field.type} = async (data: Omit<Prisma.${
+        const createRelation = `async $add${capitalize(
+          field.name
+        )} (data: Omit<Prisma.${
           field.type
-        }CreateArgs['data'], ${omitRelations}>) => {
-
-            const _data = {...data, ${relations.map(
-              (f: any) => `${f}: this.id`
-            )}} as Prisma.${field.type}CreateArgs['data'];
-
-            try {
-              return await ${field.type}.objects.create(_data);
-            } catch (e) {
-              throw e
-            }
-          }
-     `;
-
-        const updateRelation = `$update${
-          field.type
-        } = async (data: Omit<Prisma.${
-          field.type
-        }UpdateArgs['data'], ${omitRelations}>, where: Prisma.${
-          field.type
-        }UpdateArgs['where']) => {
-
+        }CreateArgs['data'], ${omitRelations}>) {
           const _data = {...data, ${relations.map(
             (f: any) => `${f}: this.id`
-          )}} as Prisma.${field.type}UpdateArgs['data'];
+          )}} as Prisma.${field.type}CreateArgs['data'];
+
+          const Model = require('./models/${field.type}').${
+          field.type
+        } as typeof ${field.type}Model;
 
           try {
-            return await ${field.type}.objects.update(_data, where);
-          }
-          catch (e) {
+            return await Model.objects.create(_data);
+          } catch (e) {
             throw e
           }
         }
-    `;
+      `;
 
-        const deleteRelation = `$delete${
+        const updateRelation = `async $update${capitalize(
+          field.name
+        )} (data: Omit<Prisma.${
           field.type
-        } = async (where: Omit<Prisma.${
+        }UpdateArgs['data'], ${omitRelations}>, where: Prisma.${
           field.type
-        }DeleteArgs['where'], ${omitRelations}>) => {
-
-            const _where = {...where, ${relations.map(
+        }UpdateArgs['where']) {
+            const _data = {...data, ${relations.map(
               (f: any) => `${f}: this.id`
-            )}} as Prisma.${field.type}DeleteArgs['where'];
+            )}} as Prisma.${field.type}UpdateArgs['data'];
 
-            try {
-              return await ${field.type}.objects.delete(_where);
+            const Model = require('./models/${field.type}').${
+          field.type
+        } as typeof ${field.type}Model;
+
+              try {
+                return await Model.objects.update(_data, where);
+              } catch (e) {
+                throw e
+              }
             }
-            catch (e) {
-              throw e
-            }
+          `;
+
+        const deleteRelation = `async $delete${capitalize(
+          field.name
+        )} (where: Omit<Prisma.${
+          field.type
+        }DeleteArgs['where'], ${omitRelations}>) {
+          const _where = {...where, ${relations.map(
+            (f: any) => `${f}: this.id`
+          )}} as Prisma.${field.type}DeleteArgs['where'];
+
+          const Model = require('./models/${field.type}').${
+          field.type
+        } as typeof ${field.type}Model;
+
+          try {
+            return await Model.objects.delete(_where);
+          } catch (e) {
+            throw e
           }
+        }
       `;
 
         return `${relation}\n${createRelation}\n${updateRelation}\n${deleteRelation}\n`;
@@ -347,16 +357,9 @@ const buildClasses = (
   };
 
   for (const model of dmmf.datamodel.models) {
-    const prismaInstanceName =
-      model.name[0]?.toLowerCase() + model.name.slice(1);
-
-    code += `export class ${model.name} extends Model {
-
-    ${objectManager(model.name, prismaInstanceName)}
-
+    code += `export abstract class ${model.name}Repository extends Repository {
 
     ${constructor(model)}
-
 
     ${classFields(model.name, model.fields)}
   }\n\n`;
@@ -373,11 +376,17 @@ export const generateRepository = async (options: {
 }) => {
   let code = `// @ts-ignore
 import type {$Enums} from "@prisma/client";
-import {PrismaClient} from "@prisma/client";
-import { Prisma } from "@prisma/client";
-import { Model, ObjectManager, NullableGetFunction, NullablePaginateFuntion } from "@netsnek/prisma-repository";
 
-const client = new PrismaClient()
+import { Prisma } from "@prisma/client";
+import { Repository, NullableGetFunction, NullablePaginateFunction } from "@netsnek/prisma-repository";
+
+${
+  options.dmmf.datamodel.models
+    .map((model) => {
+      return `import {${model.name} as ${model.name}Model} from "./models/${model.name}";`;
+    })
+    .join("\n") + "\n"
+}
 `;
 
   const exportsSymbols = getPrismaSymbols();
