@@ -1,46 +1,64 @@
 import * as fs from "fs";
 import * as path from "path";
 
+const DIST_PATH = path.resolve(process.cwd(), "./src");
+const REPOSITORY_PATH = path.resolve(DIST_PATH, "repository");
+const GENERATED_PATH = path.resolve(REPOSITORY_PATH, ".generated.ts");
+
+const createDirectoryIfNotExists = (directoryPath: string) => {
+  try {
+    if (!fs.existsSync(directoryPath)) {
+      fs.mkdirSync(directoryPath, { recursive: true });
+    }
+  } catch (error) {
+    console.error(`Error creating directory ${directoryPath}:`, error);
+    throw error; // Rethrow the error for higher-level handling if needed
+  }
+};
+
+const createModelFileIfNotExists = (modelPath: string, content: string) => {
+  try {
+    if (!fs.existsSync(modelPath)) {
+      console.log(`Creating model file ${modelPath}`);
+      fs.writeFileSync(modelPath, content);
+    }
+  } catch (error) {
+    console.error(`Error creating file ${modelPath}:`, error);
+    throw error; // Rethrow the error for higher-level handling if needed
+  }
+};
+
 export const writeRepository = (code: {
   generated: string;
-  crudService?: string;
+  models: string[];
 }) => {
-  // distPath is the path of the module ./dist
-  const distPath = path.join(process.cwd(), "./src");
-
-  const repositoryPath = path.join(distPath, "repository");
-
-  const generatedPath = path.join(repositoryPath, ".generated.ts");
-  const servicePath = path.join(repositoryPath, "crud-service.ts");
-  const indexPath = path.join(repositoryPath, "index.ts");
-
-  // Add try-catch for error handling
   try {
     // Create ./repository if it doesn't exist
-    if (!fs.existsSync(repositoryPath)) {
-      fs.mkdirSync(repositoryPath, {
-        recursive: true,
-      });
-    }
+    createDirectoryIfNotExists(REPOSITORY_PATH);
 
     // Write to ./repository/.generated.ts
-    fs.writeFileSync(generatedPath, code.generated);
+    fs.writeFileSync(GENERATED_PATH, code.generated);
 
-    if (code.crudService) {
-      // Write to ./repository/service.ts
-      fs.writeFileSync(servicePath, code.crudService);
-    }
+    // Models (./repository/models)
+    const MODELS_PATH = path.resolve(REPOSITORY_PATH, "models");
 
-    // Create ./repository/index.ts if it doesn't exist
-    if (!fs.existsSync(indexPath)) {
-      const indexContent = `import * as Repositories from "./.generated";
+    // Create ./repository/models if it doesn't exist
+    createDirectoryIfNotExists(MODELS_PATH);
 
-export default {
-  ...Repositories,
-};`;
+    // Create model files if they don't exist
+    code.models.forEach((model) => {
+      const MODEL_PATH = path.resolve(MODELS_PATH, `${model}.ts`);
 
-      fs.writeFileSync(indexPath, indexContent);
-    }
+      const content = `import * as Repositories from "../.generated";
+
+export class ${model} extends Repositories.${model} {
+  // Custom logic here...
+}`;
+
+      createModelFileIfNotExists(MODEL_PATH, content);
+    });
+
+    // Additional logic for other directories or files if needed...
   } catch (error) {
     console.error("Error writing files:", error);
   }

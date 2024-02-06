@@ -2,11 +2,9 @@ import { generatePrismaClient } from "./generate-prisma-client";
 import { getPrismaDMMF } from "./get-prisma-dmmf";
 import { generateRepository } from "./generate-repository";
 import { writeRepository } from "./write-repository";
-import { generateCRUDService } from "./generate-crud-service";
 
 export default async function generate(options: {
   pagination: boolean;
-  service: boolean;
   pm: "yarn" | "npm" | "bun";
 }) {
   // 1. Perform prisma generate
@@ -27,22 +25,11 @@ export default async function generate(options: {
   });
   console.log("Step 3: Repository generation completed");
 
-  let crudServiceCode: string | undefined = undefined;
-
-  // 4. Generate service (optional)
-  if (options.service) {
-    console.log("Step 4: Generating CRUD service");
-    crudServiceCode = generateCRUDService({ dmmf });
-    console.log("Step 4: CRUD Service generation completed");
-  } else {
-    console.log("Step 4: Skipping CRUD service generation");
-  }
-
   // 4. Write repository
   console.log("Step 5: Writing repository");
   writeRepository({
     generated: repositoryCode,
-    crudService: crudServiceCode,
+    models: dmmf.datamodel.models.map((model) => model.name),
   });
   console.log("Step 5: Repository writing completed");
 }

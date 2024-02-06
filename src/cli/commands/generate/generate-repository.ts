@@ -116,7 +116,7 @@ const buildClasses = (
         // When the field is not found in the model, it's a relation.
         // This is because Prisma Client does not generate relations as properties.
 
-        let type = `InstanceType<typeof _Repository.${field.type}>`;
+        let type = `InstanceType<typeof ${field.type}>`;
 
         if (field.isList) {
           type += "[]";
@@ -217,7 +217,7 @@ const buildClasses = (
           }
         }
 
-        const objectsStatement = `_Repository.${field.type}.objects.${managerMethod}`;
+        const objectsStatement = `${field.type}.objects.${managerMethod}`;
         const whereStatement = JSON.stringify(where)
           .replace(/"/g, "")
           .slice(1, -1);
@@ -266,9 +266,7 @@ const buildClasses = (
           .map((f: any) => `'${f}'`)
           .join(" | ");
 
-        const createRelation = `$${
-          field.name
-        }Create = async (data: Omit<Prisma.${
+        const createRelation = `$add${field.type} = async (data: Omit<Prisma.${
           field.type
         }CreateArgs['data'], ${omitRelations}>) => {
 
@@ -277,7 +275,7 @@ const buildClasses = (
             )}} as Prisma.${field.type}CreateArgs['data'];
 
             try {
-              return await _Repository.${field.type}.objects.create(_data);
+              return await ${field.type}.objects.create(_data);
             } catch (e) {
               throw e
             }
@@ -285,7 +283,7 @@ const buildClasses = (
      `;
 
         const updateRelation = `$update${
-          field.name
+          field.type
         } = async (data: Omit<Prisma.${
           field.type
         }UpdateArgs['data'], ${omitRelations}>, where: Prisma.${
@@ -297,7 +295,7 @@ const buildClasses = (
           )}} as Prisma.${field.type}UpdateArgs['data'];
 
           try {
-            return await _Repository.${field.type}.objects.update(_data, where);
+            return await ${field.type}.objects.update(_data, where);
           }
           catch (e) {
             throw e
@@ -305,9 +303,9 @@ const buildClasses = (
         }
     `;
 
-        const deleteRelation = `$${
-          field.name
-        }Delete = async (where: Omit<Prisma.${
+        const deleteRelation = `$delete${
+          field.type
+        } = async (where: Omit<Prisma.${
           field.type
         }DeleteArgs['where'], ${omitRelations}>) => {
 
@@ -316,7 +314,7 @@ const buildClasses = (
             )}} as Prisma.${field.type}DeleteArgs['where'];
 
             try {
-              return await _Repository.${field.type}.objects.delete(_where);
+              return await ${field.type}.objects.delete(_where);
             }
             catch (e) {
               throw e
@@ -377,10 +375,7 @@ export const generateRepository = async (options: {
 import type {$Enums} from "@prisma/client";
 import {PrismaClient} from "@prisma/client";
 import { Prisma } from "@prisma/client";
-import { ConnectionArguments } from "@devoxa/prisma-relay-cursor-connection";
-import { Model, ObjectManager, NullableGetFunction, NullablePaginateFuntion } from "../../dist";
-
-import _Repository from './index.js'
+import { Model, ObjectManager, NullableGetFunction, NullablePaginateFuntion } from "@netsnek/prisma-repository";
 
 const client = new PrismaClient()
 `;
