@@ -1,11 +1,13 @@
-import { ServiceError } from "@cronitio/pylon";
+import { ServiceError } from "@getcronit/pylon";
 
 export class NotFoundError extends ServiceError {
   constructor(message: string = "Object not found") {
     super(message, {
       code: "OBJECT_NOT_FOUND",
       statusCode: 404,
-      message,
+      details: {
+        message,
+      },
     });
   }
 }
@@ -15,7 +17,9 @@ export class CreateError extends ServiceError {
     super(message, {
       code: "CREATE_ERROR",
       statusCode: 500,
-      message,
+      details: {
+        message,
+      },
     });
   }
 }
@@ -25,7 +29,9 @@ export class UpdateError extends ServiceError {
     super(message, {
       code: "UPDATE_ERROR",
       statusCode: 500,
-      message,
+      details: {
+        message,
+      },
     });
   }
 }
@@ -35,7 +41,9 @@ export class DeleteError extends ServiceError {
     super(message, {
       code: "DELETE_ERROR",
       statusCode: 500,
-      message,
+      details: {
+        message,
+      },
     });
   }
 }
@@ -45,7 +53,9 @@ export class UpsertError extends ServiceError {
     super(message, {
       code: "UPSERT_ERROR",
       statusCode: 500,
-      message,
+      details: {
+        message,
+      },
     });
   }
 }
@@ -55,7 +65,9 @@ export class InvalidInputError extends ServiceError {
     super(message, {
       code: "INVALID_INPUT",
       statusCode: 400,
-      message,
+      details: {
+        message,
+      },
     });
   }
 }

@@ -15,12 +15,21 @@ export class ObjectManager<
   T extends keyof Prisma.TypeMap["model"],
   Cls extends new (fields: any) => InstanceType<Cls>
 > {
-  constructor(private instance: any, private model: Cls) {}
+  constructor(protected instance: any, private model: Cls) {
+    this.get = this.get.bind(this);
+    this.filter = this.filter.bind(this);
+    this.paginate = this.paginate.bind(this);
+    this.create = this.create.bind(this);
+    this.update = this.update.bind(this);
+    this.delete = this.delete.bind(this);
+    this.upsert = this.upsert.bind(this);
+    this.count = this.count.bind(this);
+  }
 
-  get = async (
+  async get(
     where?: Prisma.TypeMap["model"][T]["operations"]["findFirst"]["args"]["where"],
     orderBy?: Prisma.TypeMap["model"][T]["operations"]["findFirst"]["args"]["orderBy"]
-  ): Promise<InstanceType<Cls>> => {
+  ): Promise<InstanceType<Cls>> {
     const obj = await this.instance.findFirst({ where, orderBy });
 
     if (!obj) {
@@ -28,22 +37,22 @@ export class ObjectManager<
     }
 
     return new this.model(obj);
-  };
+  }
 
-  filter = async (
+  async filter(
     where?: Prisma.TypeMap["model"][T]["operations"]["findMany"]["args"]["where"],
     orderBy?: Prisma.TypeMap["model"][T]["operations"]["findMany"]["args"]["orderBy"]
-  ): Promise<InstanceType<Cls>[]> => {
+  ): Promise<InstanceType<Cls>[]> {
     const objs = await this.instance.findMany({ where, orderBy });
 
     return objs.map((obj: any) => new this.model(obj)) as InstanceType<Cls>[];
-  };
+  }
 
-  paginate = async (
+  async paginate(
     pagination?: ConnectionArguments,
     where?: Prisma.TypeMap["model"][T]["operations"]["findMany"]["args"]["where"],
     orderBy?: Prisma.TypeMap["model"][T]["operations"]["findMany"]["args"]["orderBy"]
-  ) => {
+  ) {
     return findManyCursorConnection(
       async (connectionArgs) => {
         const objs = await this.instance.findMany({
@@ -59,11 +68,11 @@ export class ObjectManager<
       () => this.count(where, orderBy),
       pagination
     );
-  };
+  }
 
-  create = async (
+  async create(
     data: Prisma.TypeMap["model"][T]["operations"]["create"]["args"]["data"]
-  ): Promise<InstanceType<Cls>> => {
+  ): Promise<InstanceType<Cls>> {
     try {
       const obj = await this.instance.create({ data });
 
@@ -73,12 +82,12 @@ export class ObjectManager<
 
       throw new CreateError();
     }
-  };
+  }
 
-  update = async (
+  async update(
     data: Prisma.TypeMap["model"][T]["operations"]["update"]["args"]["data"],
     where: Prisma.TypeMap["model"][T]["operations"]["update"]["args"]["where"]
-  ): Promise<InstanceType<Cls>> => {
+  ): Promise<InstanceType<Cls>> {
     try {
       const obj = await this.instance.update({ data, where });
 
@@ -87,21 +96,21 @@ export class ObjectManager<
       console.error(e);
       throw new UpdateError();
     }
-  };
+  }
 
-  delete = async (
+  async delete(
     where: Prisma.TypeMap["model"][T]["operations"]["delete"]["args"]["where"]
-  ): Promise<InstanceType<Cls>> => {
+  ): Promise<InstanceType<Cls>> {
     const obj = await this.instance.delete({ where });
 
     return new this.model(obj);
-  };
+  }
 
-  upsert = async (
+  async upsert(
     create: Prisma.TypeMap["model"][T]["operations"]["upsert"]["args"]["create"],
     update: Prisma.TypeMap["model"][T]["operations"]["upsert"]["args"]["update"],
     where: Prisma.TypeMap["model"][T]["operations"]["upsert"]["args"]["where"]
-  ): Promise<InstanceType<Cls>> => {
+  ): Promise<InstanceType<Cls>> {
     try {
       const obj = await this.instance.upsert({ create, update, where });
 
@@ -110,12 +119,12 @@ export class ObjectManager<
       console.error(e);
       throw new UpsertError();
     }
-  };
+  }
 
-  count = async (
+  async count(
     where?: Prisma.TypeMap["model"][T]["operations"]["count"]["args"]["where"],
     orderBy?: Prisma.TypeMap["model"][T]["operations"]["count"]["args"]["orderBy"]
-  ): Promise<number> => {
+  ): Promise<number> {
     return await this.instance.count({ orderBy, where });
-  };
+  }
 }

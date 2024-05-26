@@ -30,9 +30,9 @@ const getPrismaSymbols = () => {
   return { exportsSymbols, checker };
 };
 
-const capitalize = (str: string) => {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-};
+// const capitalize = (str: string) => {
+//   return str.charAt(0).toUpperCase() + str.slice(1);
+// };
 
 const buildClasses = (
   {
@@ -219,7 +219,7 @@ const buildClasses = (
           .replace(/"/g, "")
           .slice(1, -1);
 
-        const isPaginated = flags.pagination && field.isList;
+        const isPaginated = field.isList;
 
         const objectStatementType = !field.isRequired
           ? `${
@@ -227,9 +227,13 @@ const buildClasses = (
             }<typeof ${objectsStatement}>`
           : `typeof ${objectsStatement}`;
 
-        const relation = `async ${
-          field.name
-        } (...args: Parameters<${objectStatementType}>) {
+        const codeSnippets: string[] = [];
+
+        const getList = `async ${field.name} ${
+          isPaginated
+            ? `(pagination?: Parameters<${objectStatementType}>[0], where?: Parameters<${objectStatementType}>[1], orderBy?: Parameters<${objectStatementType}>[2])`
+            : `(where?: Parameters<${objectStatementType}>[0], orderBy?: Parameters<${objectStatementType}>[1])`
+        } {
       ${field.relationFromFields
         .map((f: any) => {
           if (field.isRequired) {
@@ -239,18 +243,21 @@ const buildClasses = (
           return `if (!this.$${f}) return null;`;
         })
         .join("\n")}
-  
 
-      args[${isPaginated ? 1 : 0}] = {...args[${
-          isPaginated ? 1 : 0
-        }], ${whereStatement}};
 
-        const Model = require('./models/${field.type}').${
+      const _where = {
+        ...where,
+        ${whereStatement}
+      }
+
+        const Model = (await require('./models/${field.type}')).${
           field.type
         } as typeof ${field.type}Model;
 
       try {
-        return await Model.objects.${managerMethod}(...args);
+        return await Model.objects.${managerMethod}(
+          ${isPaginated ? `pagination, _where, orderBy` : `_where, orderBy`}
+        );
       } catch (e) {
         ${field.isRequired ? "throw e;" : "return null;"}
       }
@@ -258,81 +265,128 @@ const buildClasses = (
       
     };\n`;
 
-        const relations = [
-          ...(field.isList ? relationToFields : relationFromFields),
-        ];
+        codeSnippets.push(getList);
+
+        if (field.isList) {
+          // The name is the field name (without the 's' at the end if it exists e.g. posts -> post. Else, it's the field name plus '_' e.g. post -> post_)
+          const name = field.name.endsWith("s")
+            ? field.name.slice(0, -1)
+            : field.name + "_";
+
+          const getOne = `async ${name} (where: Parameters<typeof ${
+            field.type
+          }Model.objects.get>[0]) {
+          ${field.relationFromFields
+            .map((f: any) => {
+              if (field.isRequired) {
+                return `if (!this.$${f}) throw new Error("Relation ${f} is required");`;
+              }
+
+              return `if (!this.$${f}) return null;`;
+            })
+            .join("\n")}
+    
+          where = {...where, ${whereStatement}};
+    
+          const Model = (await require('./models/${field.type}')).${
+            field.type
+          } as typeof ${field.type}Model;
+    
+          try {
+            return await Model.objects.get(where);
+          }
+          catch (e) {
+            ${field.isRequired ? "throw e;" : "return null;"}
+          }
+        };\n`;
+
+          codeSnippets.push(getOne);
+        }
+
+        const relations = relationToFields;
 
         const omitRelations = relations
           .concat(relationModel?.name || [])
           .map((f: any) => `'${f}'`)
           .join(" | ");
 
-        const createRelation = `async $add${capitalize(
-          field.name
-        )} (data: Omit<Prisma.${
-          field.type
-        }CreateArgs['data'], ${omitRelations}>) {
-          const _data = {...data, ${relations.map(
-            (f: any) => `${f}: this.id`
-          )}} as Prisma.${field.type}CreateArgs['data'];
+        const prefixIfNotId = (f: string) => {
+          if (f === "id") {
+            return f;
+          }
 
-          const Model = require('./models/${field.type}').${
+          return `$${f}`;
+        };
+
+        const createRelation = `async $${field.name}Add (data: Omit<Prisma.${
+          field.type
+        }CreateArgs['data'], ${omitRelations}> ) {
+          const Model = (await require('./models/${field.type}')).${
           field.type
         } as typeof ${field.type}Model;
 
           try {
-            return await Model.objects.create(_data);
+            return await Model.objects.create({...data, ${relationToFields.map(
+              (f: any, i: number) =>
+                `${f}: this.${prefixIfNotId(relationFromFields[i])} `
+            )}} as any);
           } catch (e) {
             throw e
           }
         }
       `;
 
-        const updateRelation = `async $update${capitalize(
-          field.name
-        )} (data: Omit<Prisma.${
-          field.type
-        }UpdateArgs['data'], ${omitRelations}>, where: Prisma.${
-          field.type
-        }UpdateArgs['where']) {
-            const _data = {...data, ${relations.map(
-              (f: any) => `${f}: this.id`
-            )}} as Prisma.${field.type}UpdateArgs['data'];
+        codeSnippets.push(createRelation);
 
-            const Model = require('./models/${field.type}').${
+        const updateRelation = `async $${field.name}Update (data: Prisma.${
+          field.type
+        }UpdateArgs['data'], where: Prisma.${field.type}UpdateArgs['where']) {
+          const Model = (await require('./models/${field.type}')).${
           field.type
         } as typeof ${field.type}Model;
 
-              try {
-                return await Model.objects.update(_data, where);
-              } catch (e) {
-                throw e
-              }
+          try {
+            return await Model.objects.update(data, {...where, ${relationToFields.map(
+              (f: any, i: number) =>
+                `${f}: this.${prefixIfNotId(
+                  relationFromFields[i]
+                )} || undefined`
+            )}});
+          } catch (e) {
+            throw e
+          }
+          
+       
             }
           `;
 
-        const deleteRelation = `async $delete${capitalize(
+        codeSnippets.push(updateRelation);
+
+        const deleteRelation = `async $${
           field.name
-        )} (where: Omit<Prisma.${
+        }Delete (where: Omit<Prisma.${
           field.type
         }DeleteArgs['where'], ${omitRelations}>) {
-          const _where = {...where, ${relations.map(
-            (f: any) => `${f}: this.id`
-          )}} as Prisma.${field.type}DeleteArgs['where'];
-
-          const Model = require('./models/${field.type}').${
+          const Model = (await require('./models/${field.type}')).${
           field.type
         } as typeof ${field.type}Model;
 
           try {
-            return await Model.objects.delete(_where);
+            return await Model.objects.delete({...where, ${relationToFields.map(
+              (f: any, i: number) =>
+                `${f}: this.${prefixIfNotId(
+                  relationFromFields[i]
+                )} || undefined`
+            )}} as any);
           } catch (e) {
             throw e
           }
         }
       `;
 
-        return `${relation}\n${createRelation}\n${updateRelation}\n${deleteRelation}\n`;
+        codeSnippets.push(deleteRelation);
+
+        return codeSnippets.join("\n");
       } else {
         const shouldPrefix =
           relationFromFields.includes(field.name) ||
@@ -361,7 +415,7 @@ const buildClasses = (
 
     ${constructor(model)}
 
-    ${classFields(model.name, model.fields)}
+    ${classFields(model.name, model.fields as any)}
   }\n\n`;
   }
 
@@ -378,7 +432,7 @@ export const generateRepository = async (options: {
 import type {$Enums} from "@prisma/client";
 
 import { Prisma } from "@prisma/client";
-import { Repository, NullableGetFunction, NullablePaginateFunction } from "@netsnek/prisma-repository";
+import { Repository, NullableGetFunction, NullablePaginateFunction } from "@getcronit/prisma-extended-models";
 
 ${
   options.dmmf.datamodel.models

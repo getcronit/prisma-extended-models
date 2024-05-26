@@ -69,7 +69,7 @@ export const writeRepository = (code: {
 
       const prismaInstanceName = model[0]?.toLowerCase() + model.slice(1);
 
-      const content = `import { ObjectManager } from "@netsnek/prisma-repository";
+      const content = `import { ObjectManager } from "@getcronit/prisma-extended-models";
 
 import {client} from "../client";
 import {${model}Repository} from "../.generated";

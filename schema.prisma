@@ -13,8 +13,11 @@ datasource db {
 model User {
     id String @id
 
+    stripeCustomerId String? @unique
+
     courses      Course[]
-    subscription UserSubscription?
+    subscription Subscription?
+    transactions UserTokenTransaction[]
 }
 
 model Course {
@@ -23,45 +26,27 @@ model Course {
     documents Document[]
 
     userId String
-    User   User   @relation(fields: [userId], references: [id])
+    user   User   @relation(fields: [userId], references: [id])
 }
 
 model Document {
-    id       String @id @default(uuid())
-    courseId String
-    title    String
+    id           String @id @default(uuid())
+    fileId       String @unique
+    courseId     String
+    title        String
+    readPosition Int    @default(0)
 
-    contentId String?
     // Content array
-    content   DocumentContent[]
+    contents DocumentContent[]
 
     // Define the relationship with the Course model
     course Course @relation(fields: [courseId], references: [id])
 
     readTime       Float                 @default(0)
-    progress       Int                   @default(0)
     markedFinished Boolean               @default(false)
     status         DocumentContentStatus @default(DRAFT)
 
-    fileId String @default("")
-
     createdAt DateTime @default(now())
-
-    documentProcessings DocumentProcessing[]
-}
-
-model DocumentProcessing {
-    id String @id @default(uuid())
-
-    document   Document @relation(fields: [documentId], references: [id])
-    documentId String
-
-    audioAvailable Boolean @default(false)
-    audioTokenCost Int?
-    tokenCost      Int     @default(0)
-
-    status DocumentContentStatus?
-    error  String?
 }
 
 model DocumentChat {
@@ -88,9 +73,11 @@ model DocumentChatMessage {
 model DocumentContent {
     id String @id @default(uuid())
 
-    title    String
-    text     String
-    progress Int    @default(0)
+    /// The cost it had to process the document
+    cost Int
+
+    title String
+    text  String
 
     ttsUrl String?
 
@@ -156,34 +143,24 @@ model ExamQuestionAnswer {
     isSelected Boolean @default(false)
 }
 
-model BetaToken {
-    id String @id @default(uuid())
-
-    claimedBy String?
-}
-
-model UserToken {
-    id String @id @default(uuid())
-
-    userId String @unique
-    amount Int    @default(0)
-}
-
 model UserTokenTransaction {
     id String @id @default(uuid())
 
-    userId    String
-    amount    Int
+    amount    Float
     type      UserTokenTransactionType
     createdAt DateTime                 @default(now())
 
-    UserSubscription   UserSubscription? @relation(fields: [userSubscriptionId], references: [id])
-    userSubscriptionId String?
-    UserPayment        UserPayment?      @relation(fields: [userPaymentId], references: [id])
-    userPaymentId      String?
+    subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+    subscriptionId String?
+
+    payment   Payment? @relation(fields: [paymentId], references: [id])
+    paymentId String?
+
+    User   User?   @relation(fields: [userId], references: [id])
+    userId String?
 }
 
-model UserSubscription {
+model Subscription {
     id String @id @default(uuid())
 
     userId String @unique
@@ -197,10 +174,8 @@ model UserSubscription {
     transactions UserTokenTransaction[]
 }
 
-model UserPayment {
+model Payment {
     id String @id @default(uuid())
-
-    userId String
 
     stripePaymentIntentId String @unique
     stripeInvoiceId       String @unique
@@ -209,14 +184,6 @@ model UserPayment {
     transactions UserTokenTransaction[]
 
     createdAt DateTime @default(now())
-}
-
-model Customer {
-    id String @id @default(uuid())
-
-    userId String @unique
-
-    stripeCustomerId String @unique
 }
 
 enum UserTokenTransactionType {
@@ -229,7 +196,6 @@ enum UserTokenTransactionType {
 enum DocumentContentStatus {
     DRAFT // The document has been uploaded but not yet processed
     PROCESSING // The document is being processed
-    STUCK // The document is stuck in processing
     FAILED // The document failed to be processed
     COMPLETED // The document has been processed and is ready to be used
 }

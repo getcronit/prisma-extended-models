@@ -1,8 +1,8 @@
 {
-  "name": "@netsnek/prisma-repository",
-  "version": "0.0.31",
-  "repository": "git@github.com:netsnek/prisma-repository.git",
-  "author": "Nico Schett <nicoschett@icloud.com>",
+  "name": "@getcronit/prisma-extended-models",
+  "version": "0.0.42",
+  "repository": "https://github.con/getcronit/prisma-extended-models",
+  "author": "Nico Schett <nico.schett@cronit.io>",
   "license": "MIT",
   "source": "src/index.ts",
   "type": "module",
@@ -29,7 +29,7 @@
     "dist"
   ],
   "devDependencies": {
-    "@cronitio/pylon": "*",
+    "@getcronit/pylon": "*",
     "@prisma/client": "^5.5.2",
     "microbundle": "^0.15.1",
     "prisma": "^5.5.2"
@@ -41,11 +41,11 @@
   },
   "peerDependencies": {
     "@prisma/client": "^5.5.2",
-    "@cronitio/pylon": "*",
+    "@getcronit/pylon": "*",
     "prisma": "^5.5.2"
   },
   "peerDependenciesMeta": {
-    "@snek-at/function": {
+    "@getcronit/pylon": {
       "optional": true
     }
   }
