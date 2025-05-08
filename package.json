@@ -1,7 +1,7 @@
 {
   "name": "@getcronit/prisma-extended-models",
   "version": "0.0.42",
-  "repository": "https://github.con/getcronit/prisma-extended-models",
+  "repository": "https://github.com/getcronit/prisma-extended-models",
   "author": "Nico Schett <nico.schett@cronit.io>",
   "license": "MIT",
   "source": "src/index.ts",
